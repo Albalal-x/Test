@@ -1,0 +1,35 @@
+name: Run Anti-Bot Test
+on: [push, workflow_dispatch] # يعمل عند رفع كود أو يدوياً
+
+jobs:
+  run-seleniumbase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install seleniumbase
+
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          seleniumbase install chromedriver
+
+      - name: Run Test (CDP Mode)
+        run: |
+          # التشغيل باستخدام محرك UC ووضع المتخفي (Headless)
+          pytest test_bot.py --uc --headless -s
+        
+      - name: Upload Screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-screenshot
+          path: manga_result.png
