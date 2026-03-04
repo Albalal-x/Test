@@ -1,0 +1,97 @@
+name: SeleniumBase CI - MangaStarz (Ubuntu)
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+  schedule:
+    - cron: "14 */6 * * *"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13"]
+
+    env:
+      PY_COLORS: "1"
+      LANG: "en_US.UTF-8"
+
+    steps:
+
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: 🌍 Set Locale
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y locales
+        sudo locale-gen en_US.UTF-8
+        sudo update-locale LANG=en_US.UTF-8
+        locale
+
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade wheel
+        pip install seleniumbase pytest
+
+        # Optional: if you use requirements.txt
+        if [ -f requirements.txt ]; then
+          pip install -r requirements.txt
+        fi
+
+    - name: 🌐 Install Google Chrome
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+
+    - name: 🚗 Install ChromeDriver (SeleniumBase managed)
+      run: |
+        seleniumbase install chromedriver
+
+    - name: 🧪 Verify pytest works
+      run: |
+        echo "def test_sample(): assert True" > test_sample.py
+        pytest test_sample.py --uc
+
+    - name: 🔎 Check Chrome Binary
+      run: |
+        python -c "from seleniumbase.core import detect_b_ver; print(detect_b_ver.get_binary_location('google-chrome'))"
+
+    - name: 🚀 Run UC Script
+      run: |
+        if [ -f raw_mangastarz_uc.py ]; then
+          python raw_mangastarz_uc.py --debug
+        fi
+
+    - name: 🚀 Run CDP Script
+      run: |
+        if [ -f raw_mangastarz_cdp.py ]; then
+          python raw_mangastarz_cdp.py --debug
+        fi
+
+    - name: 🧪 Run Pytest Multi-threaded
+      run: |
+        if [ -f test_mangastarz_multi.py ]; then
+          pytest test_mangastarz_multi.py --uc -n2
+        fi
+
+    - name: 📸 Upload Screenshots
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: seleniumbase-screenshots
+        path: |
+          latest_logs/
+          *.png
